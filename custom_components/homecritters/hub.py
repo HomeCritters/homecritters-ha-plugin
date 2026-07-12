@@ -9,6 +9,7 @@ and exposes a send() used by every control.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from collections.abc import Callable
@@ -16,6 +17,7 @@ from collections.abc import Callable
 import aiohttp
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import WS_PORT
@@ -69,19 +71,37 @@ class FerretHub:
 
     async def send(self, cmd: str) -> None:
         if self._ws is None or self._ws.closed:
-            _LOGGER.warning("HomeCritters not connected; dropping command %s", cmd)
-            return
+            raise HomeAssistantError(
+                f"HomeCritters ({self.name}) is not connected; cannot send {cmd!r}"
+            )
         try:
             await self._ws.send_str(cmd)
-        except aiohttp.ClientError as err:
-            _LOGGER.warning("Failed to send %s: %s", cmd, err)
+        except (aiohttp.ClientError, ConnectionError, OSError) as err:
+            # The socket was a zombie (e.g. the device rebooted and this side
+            # never noticed). Close it so _run() reconnects, flag entities
+            # unavailable right away, and surface the failure to the caller
+            # (Music Assistant retries once the player comes back).
+            _LOGGER.warning("Send failed, reconnecting: %s", err)
+            ws = self._ws
+            self._ws = None
+            if self.available:
+                self.available = False
+                self._notify()
+            with contextlib.suppress(Exception):
+                await ws.close()
+            raise HomeAssistantError(
+                f"HomeCritters ({self.name}) connection lost while sending {cmd!r}"
+            ) from err
 
     async def _run(self) -> None:
         session = async_get_clientsession(self.hass)
         while True:
             try:
+                # heartbeat=10: detect a dead socket (device reboot / WiFi
+                # drop) within seconds - a zombie connection here silently
+                # swallowed Music Assistant play commands.
                 async with session.ws_connect(
-                    f"ws://{self.host}:{WS_PORT}/", heartbeat=25
+                    f"ws://{self.host}:{WS_PORT}/", heartbeat=10
                 ) as ws:
                     self._ws = ws
                     self.available = True
