@@ -47,12 +47,25 @@ class FerretMediaPlayer(FerretEntity, MediaPlayerEntity):
 
     def __init__(self, hub: FerretHub) -> None:
         super().__init__(hub, "media")
+        self._last_url: str | None = None
 
     @property
     def state(self) -> MediaPlayerState:
         if self._hub.data.get("media") == "play":
             return MediaPlayerState.PLAYING
         return MediaPlayerState.IDLE
+
+    @property
+    def media_content_id(self) -> str | None:
+        # Report what we're playing: Music Assistant compares this against the
+        # stream URL it handed us and restarts the session when it's missing.
+        if self._hub.data.get("media") == "play":
+            return self._last_url
+        return None
+
+    @property
+    def media_content_type(self) -> str | None:
+        return "music" if self._hub.data.get("media") == "play" else None
 
     @property
     def volume_level(self) -> float | None:
@@ -74,6 +87,7 @@ class FerretMediaPlayer(FerretEntity, MediaPlayerEntity):
             )
             media_id = play_item.url
         media_id = async_process_play_media_url(self.hass, media_id)
+        self._last_url = media_id
         await self._hub.send(f"media:play:{media_id}")
 
     async def async_browse_media(
