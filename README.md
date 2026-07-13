@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/HomeCritters/homecritters-assets/main/logo/banner.png" width="640" alt="HomeCritters"/>
+</p>
+
 # HomeCritters — Home Assistant integration
 
 Home Assistant integration for **[HomeCritters](https://github.com/HomeCritters/homecritters-firmware)**:
