@@ -10,6 +10,7 @@ from .const import CONF_FW, CONF_MAC, CONF_NAME
 from .hub import FerretHub
 
 PLATFORMS: list[Platform] = [
+    Platform.ASSIST_SATELLITE,
     Platform.BUTTON,
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
