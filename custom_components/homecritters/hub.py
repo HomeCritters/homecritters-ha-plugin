@@ -127,6 +127,9 @@ class FerretHub:
                             data = msg.data
                             # Voice events ("evt:ptt:start") aren't JSON state.
                             if data.startswith("evt:"):
+                                _LOGGER.warning(
+                                    "device event %r (cb=%s)", data, self._event_cb is not None
+                                )
                                 if self._event_cb is not None:
                                     self._event_cb(data[4:])
                                 continue
