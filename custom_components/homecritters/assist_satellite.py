@@ -56,7 +56,6 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self._hub.set_event_cb(self._on_device_event)
-        _LOGGER.warning("voice satellite added; event cb wired")
 
     async def async_will_remove_from_hass(self) -> None:
         self._hub.set_event_cb(None)
@@ -77,7 +76,7 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
     def _start_turn(self) -> None:
         if self._run_task and not self._run_task.done():
             return  # a turn is already running
-        _LOGGER.warning("voice turn: starting pipeline")
+        _LOGGER.debug("voice turn: starting pipeline")
         self._audio_queue = asyncio.Queue()
         self._hub.set_audio_sink(self._audio_queue)
         self._run_task = self.hass.async_create_task(self._run_pipeline())
@@ -89,13 +88,11 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
 
     async def _run_pipeline(self) -> None:
         try:
-            _LOGGER.warning("voice turn: accepting pipeline (STT->TTS)")
             await self.async_accept_pipeline_from_satellite(
                 audio_stream=self._audio_stream(),
                 start_stage=PipelineStage.STT,
                 end_stage=PipelineStage.TTS,
             )
-            _LOGGER.warning("voice turn: pipeline finished")
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa: BLE001 - never let a bad turn kill the entity
