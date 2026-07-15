@@ -62,6 +62,9 @@
       },
       "idle_clock": {
         "name": "Relógio ocioso"
+      },
+      "night": {
+        "name": "Modo noite"
       }
     },
     "number": {

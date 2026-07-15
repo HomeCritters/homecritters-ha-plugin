@@ -62,6 +62,9 @@
       },
       "idle_clock": {
         "name": "Idle clock"
+      },
+      "night": {
+        "name": "Night mode"
       }
     },
     "number": {

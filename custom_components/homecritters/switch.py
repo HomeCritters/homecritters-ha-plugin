@@ -15,7 +15,9 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     hub: FerretHub = entry.runtime_data
-    async_add_entities([FerretSleepSwitch(hub), FerretClockSwitch(hub)])
+    async_add_entities(
+        [FerretSleepSwitch(hub), FerretNightSwitch(hub), FerretClockSwitch(hub)]
+    )
 
 
 class FerretSleepSwitch(FerretEntity, SwitchEntity):
@@ -36,6 +38,31 @@ class FerretSleepSwitch(FerretEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs) -> None:
         if self.is_on:
             await self._hub.send("sleep")
+
+
+class FerretNightSwitch(FerretEntity, SwitchEntity):
+    """Full sleep / night mode: screen and LED off, pet asleep.
+
+    Made for schedule automations (e.g. off at 23:00, on at 07:00). A local
+    touch or BOOT press on the device also wakes it - the switch state
+    follows via the device's state push.
+    """
+
+    _attr_translation_key = "night"
+    _attr_icon = "mdi:weather-night"
+
+    def __init__(self, hub: FerretHub) -> None:
+        super().__init__(hub, "night")
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self._hub.data.get("fullSleep"))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self._hub.send("fullsleep:on")
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self._hub.send("fullsleep:off")
 
 
 class FerretClockSwitch(FerretEntity, SwitchEntity):
