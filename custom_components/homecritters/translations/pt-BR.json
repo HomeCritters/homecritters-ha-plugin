@@ -71,6 +71,9 @@
       },
       "wake_sound": {
         "name": "Som ao acordar (modo noite)"
+      },
+      "mic": {
+        "name": "Microfone"
       }
     },
     "number": {

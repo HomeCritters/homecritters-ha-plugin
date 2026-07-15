@@ -19,6 +19,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             FerretSleepSwitch(hub),
+            FerretMicSwitch(hub),
             FerretNightSwitch(hub),
             FerretNightSoundSwitch(hub, "sleepsnd", "sleep_sound", "mdi:music-note"),
             FerretNightSoundSwitch(hub, "wakesnd", "wake_sound", "mdi:alarm"),
@@ -45,6 +46,31 @@ class FerretSleepSwitch(FerretEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs) -> None:
         if self.is_on:
             await self._hub.send("sleep")
+
+
+class FerretMicSwitch(FerretEntity, SwitchEntity):
+    """Microphone privacy switch (Echo-style): off = the device refuses to
+    stream ANY audio (PTT denied, mic:on ignored) and shows a red LED.
+
+    The device owns the state (persisted in NVS, also toggled by a quick
+    BOOT tap); this mirrors data["micMuted"], inverted: switch on = mic live.
+    """
+
+    _attr_translation_key = "mic"
+    _attr_icon = "mdi:microphone"
+
+    def __init__(self, hub: FerretHub) -> None:
+        super().__init__(hub, "mic")
+
+    @property
+    def is_on(self) -> bool:
+        return not self._hub.data.get("micMuted", False)
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self._hub.send("mute:off")
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self._hub.send("mute:on")
 
 
 class FerretNightSwitch(FerretEntity, SwitchEntity):
