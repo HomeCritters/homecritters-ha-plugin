@@ -3,22 +3,35 @@
     "flow_title": "{name}",
     "step": {
       "user": {
-        "description": "IP ou hostname do dispositivo HomeCritters (ex.: critter.local)",
+        "description": "IP ou hostname do dispositivo (ex.: critter.local) e o código de pareamento (no aparelho: Config > Seguranca > Senha)",
         "data": {
-          "host": "Host"
+          "host": "Host",
+          "token": "Código de pareamento"
         }
       },
       "confirm": {
         "title": "HomeCritters encontrado",
-        "description": "Adicionar {name} ao Home Assistant?"
+        "description": "Adicionar {name} ao Home Assistant? Digite o código de pareamento (no aparelho: Config > Seguranca > Senha).",
+        "data": {
+          "token": "Código de pareamento"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Parear novamente",
+        "description": "{name} rejeitou o código salvo. Digite o atual (no aparelho: Config > Seguranca > Senha).",
+        "data": {
+          "token": "Código de pareamento"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Não foi possível conectar ao dispositivo"
+      "cannot_connect": "Não foi possível conectar ao dispositivo",
+      "invalid_auth": "Código errado (veja no aparelho: Config > Seguranca > Senha)"
     },
     "abort": {
       "already_configured": "Este dispositivo já está configurado",
-      "cannot_connect": "Não foi possível conectar ao dispositivo"
+      "cannot_connect": "Não foi possível conectar ao dispositivo",
+      "reauth_successful": "OK"
     }
   },
   "entity": {

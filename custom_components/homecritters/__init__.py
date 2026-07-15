@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_FW, CONF_MAC, CONF_NAME
+from .const import CONF_FW, CONF_MAC, CONF_NAME, CONF_TOKEN
 from .hub import FerretHub
 
 PLATFORMS: list[Platform] = [
@@ -28,6 +28,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_MAC],
         entry.data.get(CONF_NAME, "HomeCritters"),
         entry.data.get(CONF_FW, "unknown"),
+        token=entry.data.get(CONF_TOKEN, ""),
+        on_auth_failed=lambda: entry.async_start_reauth(hass),
     )
     await hub.async_start()
     entry.runtime_data = hub

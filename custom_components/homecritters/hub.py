@@ -31,13 +31,23 @@ class FerretHub:
     """Owns the WS connection + last known state."""
 
     def __init__(
-        self, hass: HomeAssistant, host: str, mac: str, name: str, fw: str
+        self,
+        hass: HomeAssistant,
+        host: str,
+        mac: str,
+        name: str,
+        fw: str,
+        token: str = "",
+        on_auth_failed: Callable[[], None] | None = None,
     ) -> None:
         self.hass = hass
         self.host = host
         self.mac = mac
         self.name = name
         self.fw = fw
+        self._token = token
+        self._on_auth_failed = on_auth_failed
+        self._auth_fail_streak = 0
         self.data: dict = {}
         self.available = False
         self._ws: aiohttp.ClientWebSocketResponse | None = None
@@ -116,14 +126,21 @@ class FerretHub:
                     f"ws://{self.host}:{WS_PORT}/", heartbeat=10
                 ) as ws:
                     self._ws = ws
-                    self.available = True
-                    self._notify()
+                    # Pairing (F-Sec 1): the token MUST be the first message;
+                    # the device answers with the state JSON or disconnects.
+                    await ws.send_str(f"auth:{self._token}")
+                    got_state = False
                     # Register as the device's voice audio sink so mic frames
                     # (binary) get streamed to us when the user talks.
                     await ws.send_str("voice:sub")
                     _LOGGER.debug("Connected to %s", self.host)
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
+                            if not got_state:
+                                got_state = True  # authenticated
+                                self._auth_fail_streak = 0
+                                self.available = True
+                                self._notify()
                             data = msg.data
                             # Voice events ("evt:ptt:start") aren't JSON state.
                             if data.startswith("evt:"):
@@ -145,6 +162,17 @@ class FerretHub:
                             aiohttp.WSMsgType.ERROR,
                         ):
                             break
+                    # Connected but closed before ANY state frame = the device
+                    # rejected our token. After 3 straight rejections (not a
+                    # reboot fluke), ask the user to re-pair.
+                    if not got_state:
+                        self._auth_fail_streak += 1
+                        _LOGGER.warning(
+                            "Device closed before auth reply (%d/3)",
+                            self._auth_fail_streak,
+                        )
+                        if self._auth_fail_streak >= 3 and self._on_auth_failed:
+                            self._on_auth_failed()
             except asyncio.CancelledError:
                 self._ws = None
                 raise
