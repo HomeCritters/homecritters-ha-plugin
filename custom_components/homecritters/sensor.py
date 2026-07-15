@@ -60,7 +60,38 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     hub: FerretHub = entry.runtime_data
-    async_add_entities(FerretSensor(hub, d) for d in SENSORS)
+    async_add_entities(
+        [FerretSensor(hub, d) for d in SENSORS] + [FerretConnectionsSensor(hub)]
+    )
+
+
+class FerretConnectionsSensor(FerretEntity, SensorEntity):
+    """How many clients are paired right now; the list is in the attributes.
+
+    Use the homecritters.revoke_connection service (slot from the attributes)
+    to end one, or the "Encerrar todas as conexoes" button for all.
+    """
+
+    _attr_translation_key = "connections"
+    _attr_icon = "mdi:lan-connect"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_native_unit_of_measurement = "conexões"
+
+    def __init__(self, hub: FerretHub) -> None:
+        super().__init__(hub, "connections")
+
+    @property
+    def native_value(self) -> int:
+        return len(self._hub.clients)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "connections": [
+                {"slot": c.get("slot"), "ip": c.get("ip"), "label": c.get("label")}
+                for c in self._hub.clients
+            ]
+        }
 
 
 class FerretSensor(FerretEntity, SensorEntity):

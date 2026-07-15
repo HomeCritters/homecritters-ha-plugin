@@ -10,15 +10,24 @@
       },
       "confirm": {
         "title": "HomeCritters found",
-        "description": "Add {name} to Home Assistant?"
+        "description": "Add {name} to Home Assistant? A 6-digit pairing code will appear on its screen."
+      },
+      "pin": {
+        "title": "Pairing code",
+        "description": "Type the 6-digit code shown on the device screen.",
+        "data": {
+          "pin": "Code"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to the device"
+      "cannot_connect": "Could not connect to the device",
+      "invalid_auth": "Wrong code - look at the device screen and try again"
     },
     "abort": {
       "already_configured": "This device is already configured",
-      "cannot_connect": "Could not connect to the device"
+      "cannot_connect": "Could not connect to the device",
+      "reauth_successful": "OK"
     }
   },
   "entity": {
@@ -43,6 +52,9 @@
       },
       "screen": {
         "name": "Screen"
+      },
+      "connections": {
+        "name": "Connections"
       }
     },
     "button": {
@@ -54,6 +66,9 @@
       },
       "clean": {
         "name": "Bath"
+      },
+      "revoke_all": {
+        "name": "End all connections"
       }
     },
     "switch": {

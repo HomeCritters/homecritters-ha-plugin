@@ -3,22 +3,31 @@
     "flow_title": "{name}",
     "step": {
       "user": {
-        "description": "IP ou hostname do dispositivo HomeCritters (ex.: critter.local)",
+        "description": "IP ou hostname do dispositivo (ex.: critter.local)",
         "data": {
           "host": "Host"
         }
       },
       "confirm": {
         "title": "HomeCritters encontrado",
-        "description": "Adicionar {name} ao Home Assistant?"
+        "description": "Adicionar {name} ao Home Assistant? Um código de 6 dígitos vai aparecer na tela dele."
+      },
+      "pin": {
+        "title": "Código de pareamento",
+        "description": "Digite o código de 6 dígitos que apareceu na tela do bichinho.",
+        "data": {
+          "pin": "Código"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Não foi possível conectar ao dispositivo"
+      "cannot_connect": "Não foi possível conectar ao dispositivo",
+      "invalid_auth": "Código errado - olhe a tela do aparelho e tente de novo"
     },
     "abort": {
       "already_configured": "Este dispositivo já está configurado",
-      "cannot_connect": "Não foi possível conectar ao dispositivo"
+      "cannot_connect": "Não foi possível conectar ao dispositivo",
+      "reauth_successful": "OK"
     }
   },
   "entity": {
@@ -43,6 +52,9 @@
       },
       "screen": {
         "name": "Tela"
+      },
+      "connections": {
+        "name": "Conexões"
       }
     },
     "button": {
@@ -54,6 +66,9 @@
       },
       "clean": {
         "name": "Banho"
+      },
+      "revoke_all": {
+        "name": "Encerrar todas as conexões"
       }
     },
     "switch": {
