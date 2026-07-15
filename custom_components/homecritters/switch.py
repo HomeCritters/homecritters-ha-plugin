@@ -129,6 +129,7 @@ class FerretNightSoundSwitch(FerretEntity, SwitchEntity):
 class FerretClockSwitch(FerretEntity, SwitchEntity):
     _attr_translation_key = "idle_clock"
     _attr_icon = "mdi:clock-outline"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, hub: FerretHub) -> None:
         super().__init__(hub, "clock")

@@ -88,6 +88,28 @@
       "assistant": {
         "name": "Assistant"
       }
+    },
+    "select": {
+      "tz": {
+        "name": "Timezone"
+      },
+      "idle_delay": {
+        "name": "Idle clock delay"
+      },
+      "menu_timeout": {
+        "name": "Menu auto-close"
+      },
+      "hour_format": {
+        "name": "Time format"
+      },
+      "date_format": {
+        "name": "Date format"
+      }
+    },
+    "text": {
+      "pet_name": {
+        "name": "Pet name"
+      }
     }
   }
 }
