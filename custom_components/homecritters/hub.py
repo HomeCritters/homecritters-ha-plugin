@@ -43,6 +43,9 @@ class FerretHub:
         self._ws: aiohttp.ClientWebSocketResponse | None = None
         self._task: asyncio.Task | None = None
         self._listeners: set[Callable[[], None]] = set()
+        # Voice assistant sinks (set by the assist_satellite entity).
+        self._audio_sink: asyncio.Queue[bytes] | None = None
+        self._event_cb: Callable[[str], None] | None = None
 
     async def async_start(self) -> None:
         self._task = self.hass.loop.create_task(self._run())
@@ -68,6 +71,15 @@ class FerretHub:
     def _notify(self) -> None:
         for cb in list(self._listeners):
             cb()
+
+    # --- voice assistant wiring (assist_satellite entity) ---
+    def set_audio_sink(self, queue: asyncio.Queue[bytes] | None) -> None:
+        """Route incoming binary mic frames into this queue (None = drop)."""
+        self._audio_sink = queue
+
+    def set_event_cb(self, cb: Callable[[str], None] | None) -> None:
+        """Receive device voice events ('ptt:start', 'ptt:end', ...)."""
+        self._event_cb = cb
 
     async def send(self, cmd: str) -> None:
         if self._ws is None or self._ws.closed:
@@ -106,14 +118,28 @@ class FerretHub:
                     self._ws = ws
                     self.available = True
                     self._notify()
+                    # Register as the device's voice audio sink so mic frames
+                    # (binary) get streamed to us when the user talks.
+                    await ws.send_str("voice:sub")
                     _LOGGER.debug("Connected to %s", self.host)
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
+                            data = msg.data
+                            # Voice events ("evt:ptt:start") aren't JSON state.
+                            if data.startswith("evt:"):
+                                _LOGGER.debug("device event %s", data)
+                                if self._event_cb is not None:
+                                    self._event_cb(data[4:])
+                                continue
                             try:
-                                self.data = json.loads(msg.data)
+                                self.data = json.loads(data)
                             except ValueError:
                                 continue
                             self._notify()
+                        elif msg.type == aiohttp.WSMsgType.BINARY:
+                            # Raw 16kHz mono 16-bit PCM mic frame -> STT pipeline.
+                            if self._audio_sink is not None:
+                                self._audio_sink.put_nowait(msg.data)
                         elif msg.type in (
                             aiohttp.WSMsgType.CLOSED,
                             aiohttp.WSMsgType.ERROR,

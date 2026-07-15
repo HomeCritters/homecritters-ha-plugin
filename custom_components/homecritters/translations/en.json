@@ -23,26 +23,68 @@
   },
   "entity": {
     "sensor": {
-      "hunger": { "name": "Hunger" },
-      "energy": { "name": "Energy" },
-      "joy": { "name": "Joy" },
-      "hygiene": { "name": "Hygiene" },
-      "battery": { "name": "Battery" },
-      "mood": { "name": "Mood" },
-      "screen": { "name": "Screen" }
+      "hunger": {
+        "name": "Hunger"
+      },
+      "energy": {
+        "name": "Energy"
+      },
+      "joy": {
+        "name": "Joy"
+      },
+      "hygiene": {
+        "name": "Hygiene"
+      },
+      "battery": {
+        "name": "Battery"
+      },
+      "mood": {
+        "name": "Mood"
+      },
+      "screen": {
+        "name": "Screen"
+      }
     },
     "button": {
-      "feed": { "name": "Feed" },
-      "pat": { "name": "Pet" },
-      "clean": { "name": "Bath" }
+      "feed": {
+        "name": "Feed"
+      },
+      "pat": {
+        "name": "Pet"
+      },
+      "clean": {
+        "name": "Bath"
+      }
     },
     "switch": {
-      "sleep": { "name": "Sleep" },
-      "idle_clock": { "name": "Idle clock" }
+      "sleep": {
+        "name": "Sleep"
+      },
+      "idle_clock": {
+        "name": "Idle clock"
+      },
+      "night": {
+        "name": "Night mode"
+      },
+      "sleep_sound": {
+        "name": "Sleep sound (night mode)"
+      },
+      "wake_sound": {
+        "name": "Wake sound (night mode)"
+      }
     },
     "number": {
-      "led_brightness": { "name": "LED brightness" },
-      "screen_brightness": { "name": "Screen brightness" }
+      "led_brightness": {
+        "name": "LED brightness"
+      },
+      "screen_brightness": {
+        "name": "Screen brightness"
+      }
+    },
+    "assist_satellite": {
+      "assistant": {
+        "name": "Assistant"
+      }
     }
   }
 }
