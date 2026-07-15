@@ -51,6 +51,7 @@ class FerretHub:
         self._token = token
         self._on_auth_failed = on_auth_failed
         self._auth_fail_streak = 0
+        self.clients: list[dict] = []  # connections manager list (from clients:)
         self.data: dict = {}
         self.available = False
         self._ws: aiohttp.ClientWebSocketResponse | None = None
@@ -99,6 +100,14 @@ class FerretHub:
         return hmac.new(
             self._token.encode(), nonce.encode(), hashlib.sha256
         ).hexdigest()
+
+    async def revoke(self, slot: int) -> None:
+        """End one paired connection (device rotates that slot's credential)."""
+        await self.send(f"revoke:{int(slot)}")
+
+    async def revoke_all(self) -> None:
+        """End every connection - all clients (including us) must re-pair."""
+        await self.send("revoke:all")
 
     async def send(self, cmd: str) -> None:
         if self._ws is None or self._ws.closed:
@@ -164,6 +173,15 @@ class FerretHub:
                                 break
                             verified = True
                             await ws.send_str("voice:sub")
+                            await ws.send_str("label:Home Assistant")
+                            await ws.send_str("clients?")
+                            continue
+                        if data.startswith("clients:"):
+                            try:
+                                self.clients = json.loads(data[8:])
+                            except ValueError:
+                                self.clients = []
+                            self._notify()
                             continue
                         if not got_state:
                             got_state = True  # first state frame = authenticated
@@ -199,6 +217,7 @@ class FerretHub:
                 _LOGGER.debug("WS connection error: %s", err)
 
             self._ws = None
+            self.clients = []
             if self.available:
                 self.available = False
                 self._notify()

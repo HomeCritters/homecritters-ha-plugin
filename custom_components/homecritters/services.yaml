@@ -1,0 +1,20 @@
+revoke_connection:
+  name: Encerrar conexão
+  description: Encerra uma conexão pareada específica (o aparelho terá que parear de novo).
+  fields:
+    config_entry:
+      name: Dispositivo
+      description: Entry do HomeCritters (entry_id).
+      required: true
+      selector:
+        config_entry:
+          integration: homecritters
+    slot:
+      name: Slot
+      description: Slot da conexão (veja os atributos do sensor Conexões).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 7
+          mode: box

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
+import homeassistant.helpers.config_validation as cv
 
-from .const import CONF_FW, CONF_MAC, CONF_NAME, CONF_TOKEN
+from .const import CONF_FW, CONF_MAC, CONF_NAME, CONF_TOKEN, DOMAIN
 from .hub import FerretHub
 
 PLATFORMS: list[Platform] = [
@@ -34,6 +37,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hub.async_start()
     entry.runtime_data = hub
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    async def _revoke_connection(call: ServiceCall) -> None:
+        """End one paired connection by its slot (see the connections sensor)."""
+        target = hass.config_entries.async_get_entry(call.data["config_entry"])
+        if target and target.domain == DOMAIN:
+            await target.runtime_data.revoke(int(call.data["slot"]))
+
+    if not hass.services.has_service(DOMAIN, "revoke_connection"):
+        hass.services.async_register(
+            DOMAIN,
+            "revoke_connection",
+            _revoke_connection,
+            schema=vol.Schema(
+                {
+                    vol.Required("config_entry"): cv.string,
+                    vol.Required("slot"): vol.Coerce(int),
+                }
+            ),
+        )
     return True
 
 

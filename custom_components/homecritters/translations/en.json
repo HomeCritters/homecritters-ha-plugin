@@ -52,6 +52,9 @@
       },
       "screen": {
         "name": "Screen"
+      },
+      "connections": {
+        "name": "Connections"
       }
     },
     "button": {
@@ -63,6 +66,9 @@
       },
       "clean": {
         "name": "Bath"
+      },
+      "revoke_all": {
+        "name": "End all connections"
       }
     },
     "switch": {

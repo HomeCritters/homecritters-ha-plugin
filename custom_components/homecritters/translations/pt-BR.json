@@ -52,6 +52,9 @@
       },
       "screen": {
         "name": "Tela"
+      },
+      "connections": {
+        "name": "Conexões"
       }
     },
     "button": {
@@ -63,6 +66,9 @@
       },
       "clean": {
         "name": "Banho"
+      },
+      "revoke_all": {
+        "name": "Encerrar todas as conexões"
       }
     },
     "switch": {
