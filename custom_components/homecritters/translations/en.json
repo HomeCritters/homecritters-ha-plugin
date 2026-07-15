@@ -3,30 +3,26 @@
     "flow_title": "{name}",
     "step": {
       "user": {
-        "description": "IP or hostname of the HomeCritters device (e.g. critter.local) and its pairing code (on the device: Config > Security > Password)",
+        "description": "IP or hostname of the HomeCritters device (e.g. critter.local)",
         "data": {
-          "host": "Host",
-          "token": "Pairing code"
+          "host": "Host"
         }
       },
       "confirm": {
         "title": "HomeCritters found",
-        "description": "Add {name} to Home Assistant? Enter its pairing code (on the device: Config > Security > Password).",
-        "data": {
-          "token": "Pairing code"
-        }
+        "description": "Add {name} to Home Assistant? A 6-digit pairing code will appear on its screen."
       },
-      "reauth_confirm": {
-        "title": "Re-pair with the device",
-        "description": "{name} rejected the saved pairing code. Enter the current one (on the device: Config > Security > Password).",
+      "pin": {
+        "title": "Pairing code",
+        "description": "Type the 6-digit code shown on the device screen.",
         "data": {
-          "token": "Pairing code"
+          "pin": "Code"
         }
       }
     },
     "error": {
       "cannot_connect": "Could not connect to the device",
-      "invalid_auth": "Wrong pairing code (check the ball: Config > Security > Password)"
+      "invalid_auth": "Wrong code - look at the device screen and try again"
     },
     "abort": {
       "already_configured": "This device is already configured",
