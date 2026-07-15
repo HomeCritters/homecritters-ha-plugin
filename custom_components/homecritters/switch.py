@@ -1,9 +1,10 @@
-"""Switches: sleep (tucks the pet in) and the idle clock mode."""
+"""Switches: sleep, night mode (+ its sound settings) and the idle clock."""
 
 from __future__ import annotations
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -16,7 +17,13 @@ async def async_setup_entry(
 ) -> None:
     hub: FerretHub = entry.runtime_data
     async_add_entities(
-        [FerretSleepSwitch(hub), FerretNightSwitch(hub), FerretClockSwitch(hub)]
+        [
+            FerretSleepSwitch(hub),
+            FerretNightSwitch(hub),
+            FerretNightSoundSwitch(hub, "sleepsnd", "sleep_sound", "mdi:music-note"),
+            FerretNightSoundSwitch(hub, "wakesnd", "wake_sound", "mdi:alarm"),
+            FerretClockSwitch(hub),
+        ]
     )
 
 
@@ -63,6 +70,34 @@ class FerretNightSwitch(FerretEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         await self._hub.send("fullsleep:off")
+
+
+class FerretNightSoundSwitch(FerretEntity, SwitchEntity):
+    """Night-mode sound settings: play the snore/wake tune on FULL-sleep
+    transitions? (The regular sleep button always keeps its sounds.)
+
+    cmd is the firmware command prefix and the state JSON key differs only
+    in casing: "sleepsnd" -> data["sleepSnd"], "wakesnd" -> data["wakeSnd"].
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, hub: FerretHub, cmd: str, key: str, icon: str) -> None:
+        super().__init__(hub, cmd)
+        self._cmd = cmd
+        self._data_key = "sleepSnd" if cmd == "sleepsnd" else "wakeSnd"
+        self._attr_translation_key = key
+        self._attr_icon = icon
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self._hub.data.get(self._data_key, True))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self._hub.send(f"{self._cmd}:on")
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self._hub.send(f"{self._cmd}:off")
 
 
 class FerretClockSwitch(FerretEntity, SwitchEntity):

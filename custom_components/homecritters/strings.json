@@ -65,6 +65,12 @@
       },
       "night": {
         "name": "Night mode"
+      },
+      "sleep_sound": {
+        "name": "Sleep sound (night mode)"
+      },
+      "wake_sound": {
+        "name": "Wake sound (night mode)"
       }
     },
     "number": {
