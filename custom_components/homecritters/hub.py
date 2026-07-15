@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
+import hmac
 import json
 import logging
+import secrets
 from collections.abc import Callable
 
 import aiohttp
@@ -91,6 +94,12 @@ class FerretHub:
         """Receive device voice events ('ptt:start', 'ptt:end', ...)."""
         self._event_cb = cb
 
+    def _hmac(self, nonce: str) -> str:
+        """HMAC-SHA256(token, nonce) as lowercase hex - matches the firmware."""
+        return hmac.new(
+            self._token.encode(), nonce.encode(), hashlib.sha256
+        ).hexdigest()
+
     async def send(self, cmd: str) -> None:
         if self._ws is None or self._ws.closed:
             raise HomeAssistantError(
@@ -126,42 +135,52 @@ class FerretHub:
                     f"ws://{self.host}:{WS_PORT}/", heartbeat=10
                 ) as ws:
                     self._ws = ws
-                    # Pairing (F-Sec 1): the token MUST be the first message;
-                    # the device answers with the state JSON or disconnects.
-                    await ws.send_str(f"auth:{self._token}")
+                    # Challenge-response (F-Sec 2): the device greets us with
+                    # "challenge:<nonce>". We answer HMAC(token, nonce) plus
+                    # our own nonce and require the device to prove itself back
+                    # (mutual auth) before we trust anything or send voice:sub.
+                    cnonce = secrets.token_hex(16)
                     got_state = False
-                    # Register as the device's voice audio sink so mic frames
-                    # (binary) get streamed to us when the user talks.
-                    await ws.send_str("voice:sub")
-                    _LOGGER.debug("Connected to %s", self.host)
+                    verified = False
                     async for msg in ws:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            if not got_state:
-                                got_state = True  # authenticated
-                                self._auth_fail_streak = 0
-                                self.available = True
-                                self._notify()
-                            data = msg.data
-                            # Voice events ("evt:ptt:start") aren't JSON state.
-                            if data.startswith("evt:"):
-                                _LOGGER.debug("device event %s", data)
-                                if self._event_cb is not None:
-                                    self._event_cb(data[4:])
-                                continue
-                            try:
-                                self.data = json.loads(data)
-                            except ValueError:
-                                continue
+                        if msg.type != aiohttp.WSMsgType.TEXT:
+                            if msg.type == aiohttp.WSMsgType.BINARY:
+                                if verified and self._audio_sink is not None:
+                                    self._audio_sink.put_nowait(msg.data)
+                            elif msg.type in (
+                                aiohttp.WSMsgType.CLOSED,
+                                aiohttp.WSMsgType.ERROR,
+                            ):
+                                break
+                            continue
+                        data = msg.data
+                        if data.startswith("challenge:"):
+                            resp = self._hmac(data[10:])
+                            await ws.send_str(f"auth:{resp}:{cnonce}")
+                            continue
+                        if data.startswith("proof:"):
+                            if not hmac.compare_digest(data[6:], self._hmac(cnonce)):
+                                _LOGGER.warning("Device failed proof - not the real ball")
+                                break
+                            verified = True
+                            await ws.send_str("voice:sub")
+                            continue
+                        if not got_state:
+                            got_state = True  # first state frame = authenticated
+                            self._auth_fail_streak = 0
+                            self.available = True
                             self._notify()
-                        elif msg.type == aiohttp.WSMsgType.BINARY:
-                            # Raw 16kHz mono 16-bit PCM mic frame -> STT pipeline.
-                            if self._audio_sink is not None:
-                                self._audio_sink.put_nowait(msg.data)
-                        elif msg.type in (
-                            aiohttp.WSMsgType.CLOSED,
-                            aiohttp.WSMsgType.ERROR,
-                        ):
-                            break
+                        # Voice events ("evt:ptt:start") aren't JSON state.
+                        if data.startswith("evt:"):
+                            _LOGGER.debug("device event %s", data)
+                            if self._event_cb is not None:
+                                self._event_cb(data[4:])
+                            continue
+                        try:
+                            self.data = json.loads(data)
+                        except ValueError:
+                            continue
+                        self._notify()
                     # Connected but closed before ANY state frame = the device
                     # rejected our token. After 3 straight rejections (not a
                     # reboot fluke), ask the user to re-pair.

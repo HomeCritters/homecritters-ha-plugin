@@ -65,11 +65,14 @@ class FerretBallConfigFlow(ConfigFlow, domain=DOMAIN):
                 ws = await session.ws_connect(f"ws://{host}:{WS_PORT}/")
                 try:
                     await ws.send_str(f"pair:{pin}")
-                    msg = await ws.receive(timeout=5)
-                    if msg.type == aiohttp.WSMsgType.TEXT and msg.data.startswith(
-                        "token:"
-                    ):
-                        return msg.data[6:]
+                    # The device greets with "challenge:<nonce>" first; skip
+                    # any frame until the "token:<hex>" reply (or a close).
+                    for _ in range(4):
+                        msg = await ws.receive(timeout=5)
+                        if msg.type != aiohttp.WSMsgType.TEXT:
+                            return None
+                        if msg.data.startswith("token:"):
+                            return msg.data[6:]
                     return None
                 finally:
                     await ws.close()
