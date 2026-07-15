@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -28,12 +28,14 @@ NUMBERS: tuple[FerretNumberDescription, ...] = (
         native_min_value=0, native_max_value=100, native_step=5,
         native_unit_of_measurement=PERCENTAGE,
         command="led", state_key="ledBright",
+        entity_category=EntityCategory.CONFIG,
     ),
     FerretNumberDescription(
         key="scr_bright", translation_key="screen_brightness", icon="mdi:brightness-6",
         native_min_value=20, native_max_value=100, native_step=5,
         native_unit_of_measurement=PERCENTAGE,
         command="scr", state_key="scrBright",
+        entity_category=EntityCategory.CONFIG,
     ),
 )
 

@@ -88,6 +88,28 @@
       "assistant": {
         "name": "Assistente"
       }
+    },
+    "select": {
+      "tz": {
+        "name": "Fuso horário"
+      },
+      "idle_delay": {
+        "name": "Relógio após ocioso"
+      },
+      "menu_timeout": {
+        "name": "Fechar menus sozinho"
+      },
+      "hour_format": {
+        "name": "Formato da hora"
+      },
+      "date_format": {
+        "name": "Formato da data"
+      }
+    },
+    "text": {
+      "pet_name": {
+        "name": "Nome do bichinho"
+      }
     }
   }
 }

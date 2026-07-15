@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -46,9 +46,13 @@ SENSORS: tuple[FerretSensorDescription, ...] = (
         key="battery", translation_key="battery",
         device_class=SensorDeviceClass.BATTERY,
         native_unit_of_measurement=PERCENTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FerretSensorDescription(key="mood", translation_key="mood", icon="mdi:emoticon"),
-    FerretSensorDescription(key="screen", translation_key="screen", icon="mdi:monitor"),
+    FerretSensorDescription(
+        key="screen", translation_key="screen", icon="mdi:monitor",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 )
 
 
