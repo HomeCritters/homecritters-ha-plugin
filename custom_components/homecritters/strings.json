@@ -71,6 +71,9 @@
       },
       "wake_sound": {
         "name": "Wake sound (night mode)"
+      },
+      "mic": {
+        "name": "Microphone"
       }
     },
     "number": {
