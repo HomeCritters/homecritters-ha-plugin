@@ -54,6 +54,8 @@ class FerretMicSwitch(FerretEntity, SwitchEntity):
 
     The device owns the state (persisted in NVS, also toggled by a quick
     BOOT tap); this mirrors data["micMuted"], inverted: switch on = mic live.
+    The assist satellite watches the same state (hub.mic_enabled) to arm or
+    tear down the always-on wake word run.
     """
 
     _attr_translation_key = "mic"

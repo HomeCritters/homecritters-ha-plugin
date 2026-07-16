@@ -75,6 +75,13 @@ class FerretHub:
         self._audio_sink: asyncio.Queue[bytes] | None = None
         self._event_cb: Callable[[str], None] | None = None
 
+    @property
+    def mic_enabled(self) -> bool:
+        """Mic privacy gate - DEVICE-owned (micMuted in its state push, also
+        flipped by a quick BOOT tap or the HA switch via mute:on/off). The
+        assist satellite arms/disarms the wake word run off this."""
+        return not self.data.get("micMuted", False)
+
     async def async_start(self) -> None:
         self._task = self.hass.loop.create_task(self._run())
 
