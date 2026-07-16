@@ -15,6 +15,7 @@ import hmac
 import json
 import logging
 import secrets
+import unicodedata
 from collections.abc import Callable
 
 import aiohttp
@@ -128,9 +129,22 @@ class FerretHub:
         if state is None:
             return None
         domain = state.entity_id.split(".")[0]
-        name = state.attributes.get("friendly_name") or state.entity_id
+        raw_name = state.attributes.get("friendly_name") or state.entity_id
+        # The device font is ASCII-only: transliterate accents (Umidade ok,
+        # "Sala de Estar" ok, accented chars -> closest ASCII).
+        name = (
+            unicodedata.normalize("NFKD", raw_name)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
         unit = state.attributes.get("unit_of_measurement") or ""
-        value = f"{state.state}{unit}" if domain in ("sensor", "number") else ""
+        raw_value = f"{state.state}{unit}" if domain in ("sensor", "number") else ""
+        # ASCII-only for the device font (degree sign etc. get dropped).
+        value = (
+            unicodedata.normalize("NFKD", raw_value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
         return {
             "id": state.entity_id,
             "n": name[:18],
