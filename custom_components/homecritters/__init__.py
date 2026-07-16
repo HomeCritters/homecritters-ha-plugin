@@ -33,9 +33,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data.get(CONF_FW, "unknown"),
         token=entry.data.get(CONF_TOKEN, ""),
         on_auth_failed=lambda: entry.async_start_reauth(hass),
+        entities=entry.options.get("entities", []),
     )
     await hub.async_start()
     entry.runtime_data = hub
+    # Re-run setup when the exposed-entities options change.
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def _revoke_connection(call: ServiceCall) -> None:
@@ -63,3 +66,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         await entry.runtime_data.async_stop()
     return unload_ok
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload so the hub re-subscribes to the newly chosen entities."""
+    await hass.config_entries.async_reload(entry.entry_id)

@@ -126,5 +126,16 @@
         "name": "Nome do bichinho"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Painel do dispositivo",
+        "description": "Escolha as entidades que aparecem na tela do bichinho (puxe a borda esquerda). Controles liga/desliga + sensores de temperatura/umidade funcionam melhor.",
+        "data": {
+          "entities": "Entidades"
+        }
+      }
+    }
   }
 }
