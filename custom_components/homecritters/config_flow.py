@@ -214,7 +214,9 @@ class FerretOptionsFlow(OptionsFlow):
                 {
                     vol.Optional("entities", default=current): selector.EntitySelector(
                         selector.EntitySelectorConfig(
-                            multiple=True, domain=self._DOMAINS
+                            # reorder: drag handles in the picker - the list
+                            # order IS the tile order on the device screen.
+                            multiple=True, reorder=True, domain=self._DOMAINS
                         )
                     )
                 }
