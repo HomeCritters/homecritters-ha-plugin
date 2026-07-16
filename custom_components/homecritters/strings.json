@@ -126,5 +126,16 @@
         "name": "Pet name"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Device control panel",
+        "description": "Pick the entities to show on the pet screen (pull the left edge). On/off controls + temperature/humidity sensors work best.",
+        "data": {
+          "entities": "Entities"
+        }
+      }
+    }
   }
 }

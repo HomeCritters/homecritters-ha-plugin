@@ -15,19 +15,28 @@ import hmac
 import json
 import logging
 import secrets
+import unicodedata
 from collections.abc import Callable
 
 import aiohttp
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import WS_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
 RECONNECT_SECONDS = 5
+
+# Domains the device panel can toggle on/off (everything else is read-only,
+# e.g. sensors show their value). cover/lock get a domain-specific service.
+CONTROLLABLE = {
+    "light", "switch", "fan", "input_boolean", "cover", "lock", "siren",
+    "humidifier",
+}
 
 
 class FerretHub:
@@ -42,6 +51,7 @@ class FerretHub:
         fw: str,
         token: str = "",
         on_auth_failed: Callable[[], None] | None = None,
+        entities: list[str] | None = None,
     ) -> None:
         self.hass = hass
         self.host = host
@@ -52,6 +62,10 @@ class FerretHub:
         self._on_auth_failed = on_auth_failed
         self._auth_fail_streak = 0
         self.clients: list[dict] = []  # connections manager list (from clients:)
+        # HA panel: entities exposed on the device screen (options flow).
+        self._entities = entities or []
+        self._ha_unsub: Callable[[], None] | None = None
+        self._ha_last: dict[str, str] = {}  # last-sent display sig (throttle)
         self.data: dict = {}
         self.available = False
         self._ws: aiohttp.ClientWebSocketResponse | None = None
@@ -108,6 +122,100 @@ class FerretHub:
     async def revoke_all(self) -> None:
         """End every connection - all clients (including us) must re-pair."""
         await self.send("revoke:all")
+
+    # --- HA panel bridge (device screen: sensors + on/off controls) ---
+    def _entity_payload(self, state) -> dict | None:
+        """Compact entity dict for the device: {id,n,d,s,v,c}."""
+        if state is None:
+            return None
+        domain = state.entity_id.split(".")[0]
+        raw_name = state.attributes.get("friendly_name") or state.entity_id
+        # The device font is ASCII-only: transliterate accents (Umidade ok,
+        # "Sala de Estar" ok, accented chars -> closest ASCII).
+        name = (
+            unicodedata.normalize("NFKD", raw_name)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+        unit = state.attributes.get("unit_of_measurement") or ""
+        raw_value = f"{state.state}{unit}" if domain in ("sensor", "number") else ""
+        # ASCII-only for the device font (degree sign etc. get dropped).
+        value = (
+            unicodedata.normalize("NFKD", raw_value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+        return {
+            "id": state.entity_id,
+            "n": name[:18],
+            "d": domain,
+            "s": state.state,
+            "v": value[:12],
+            "c": domain in CONTROLLABLE,
+        }
+
+    async def _ha_setup(self, ws: aiohttp.ClientWebSocketResponse) -> None:
+        """Subscribe to the exposed entities and push the initial list."""
+        self._ha_teardown()
+        if self._entities:
+            self._ha_unsub = async_track_state_change_event(
+                self.hass, self._entities, self._ha_state_event
+            )
+        await self._ha_send_list(ws)
+
+    async def _ha_send_list(self, ws: aiohttp.ClientWebSocketResponse) -> None:
+        items = [
+            p
+            for e in self._entities
+            if (p := self._entity_payload(self.hass.states.get(e)))
+        ]
+        for p in items:
+            self._ha_last[p["id"]] = p["s"] + "|" + p["v"]
+        await ws.send_str("ha:list:" + json.dumps(items, separators=(",", ":")))
+
+    @callback
+    def _ha_state_event(self, event: Event) -> None:
+        p = self._entity_payload(event.data.get("new_state"))
+        if not p:
+            return
+        sig = p["s"] + "|" + p["v"]
+        if self._ha_last.get(p["id"]) == sig:  # display unchanged: skip
+            return
+        self._ha_last[p["id"]] = sig
+        self.hass.async_create_task(
+            self._safe_send("ha:upd:" + json.dumps(p, separators=(",", ":")))
+        )
+
+    async def _safe_send(self, cmd: str) -> None:
+        with contextlib.suppress(Exception):
+            await self.send(cmd)
+
+    async def _ha_command(self, eid: str, action: str) -> None:
+        """Toggle a device from the panel (v1: on/off only)."""
+        domain = eid.split(".")[0]
+        try:
+            if domain == "cover":
+                await self.hass.services.async_call(
+                    "cover", "toggle", {"entity_id": eid}, blocking=False
+                )
+            elif domain == "lock":
+                st = self.hass.states.get(eid)
+                svc = "unlock" if st and st.state == "locked" else "lock"
+                await self.hass.services.async_call(
+                    "lock", svc, {"entity_id": eid}, blocking=False
+                )
+            else:
+                await self.hass.services.async_call(
+                    "homeassistant", "toggle", {"entity_id": eid}, blocking=False
+                )
+        except Exception:  # noqa: BLE001 - a bad entity shouldn't kill the hub
+            _LOGGER.warning("HA panel command failed: %s %s", eid, action)
+
+    def _ha_teardown(self) -> None:
+        if self._ha_unsub:
+            self._ha_unsub()
+            self._ha_unsub = None
+        self._ha_last = {}
 
     async def send(self, cmd: str) -> None:
         if self._ws is None or self._ws.closed:
@@ -175,6 +283,14 @@ class FerretHub:
                             await ws.send_str("voice:sub")
                             await ws.send_str("label:Home Assistant")
                             await ws.send_str("clients?")
+                            await self._ha_setup(ws)  # panel: subscribe + list
+                            continue
+                        if data.startswith("ha:cmd:"):
+                            eid, _, action = data[7:].partition(":")
+                            await self._ha_command(eid, action)
+                            continue
+                        if data == "ha:sub":
+                            await self._ha_send_list(ws)
                             continue
                         if data.startswith("clients:"):
                             try:
@@ -218,6 +334,7 @@ class FerretHub:
 
             self._ws = None
             self.clients = []
+            self._ha_teardown()
             if self.available:
                 self.available = False
                 self._notify()

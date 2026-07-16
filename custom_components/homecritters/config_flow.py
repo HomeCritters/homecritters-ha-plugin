@@ -14,8 +14,16 @@ from typing import Any
 import aiohttp
 import voluptuous as vol
 
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST, CONF_PIN
+from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import format_mac
 
@@ -31,6 +39,11 @@ class FerretBallConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the config flow."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return FerretOptionsFlow()
 
     def __init__(self) -> None:
         self._host: str | None = None
@@ -177,3 +190,33 @@ class FerretBallConfigFlow(ConfigFlow, domain=DOMAIN):
                       "name": entry_data.get(CONF_NAME, "HomeCritters")}
         await self._pair_request(self._host)
         return await self.async_step_pin()
+
+
+class FerretOptionsFlow(OptionsFlow):
+    """Pick which HA entities appear on the device's control panel."""
+
+    # Domains worth showing on the little round screen: on/off controls +
+    # sensors (temperature/humidity are the useful read-only ones).
+    _DOMAINS = [
+        "light", "switch", "fan", "input_boolean", "lock", "cover", "siren",
+        "humidifier", "sensor", "binary_sensor",
+    ]
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+        current = self.config_entry.options.get("entities", [])
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional("entities", default=current): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            multiple=True, domain=self._DOMAINS
+                        )
+                    )
+                }
+            ),
+        )
