@@ -152,6 +152,9 @@ class FerretHub:
             "s": state.state,
             "v": value[:12],
             "c": domain in CONTROLLABLE,
+            # device_class drives the icon on the device (person for
+            # motion/occupancy/presence, sun for illuminance, ...).
+            "dc": (state.attributes.get("device_class") or "")[:12],
         }
 
     async def _ha_setup(self, ws: aiohttp.ClientWebSocketResponse) -> None:
