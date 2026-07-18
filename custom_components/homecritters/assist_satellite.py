@@ -67,6 +67,7 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
         self._continue_conversation = False
         self._tts_played = False
         self._media_done: asyncio.Event = asyncio.Event()
+        self._last_arm = 0.0  # monotonic time of the last wake-run arm (backoff)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -139,6 +140,14 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
             and self._run_task is not asyncio.current_task()
         ):
             return
+        # Backoff: if wake runs die instantly (e.g. the openWakeWord add-on is
+        # restarting after a threshold change), re-arming with no delay spins a
+        # storm of runs a second - the "keeps disconnecting" symptom. Cap arming
+        # to once per interval; _on_update keeps retrying until it takes.
+        now = self.hass.loop.time()
+        if now - self._last_arm < 2.0:
+            return
+        self._last_arm = now
         self._start_run(PipelineStage.WAKE_WORD)
         self._send("mic:on")
 
