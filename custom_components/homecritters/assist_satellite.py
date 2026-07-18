@@ -136,7 +136,13 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
         self._tts_played = False
         self._audio_queue = asyncio.Queue()
         self._hub.set_audio_sink(self._audio_queue)
-        self._run_task = self.hass.async_create_task(self._run_pipeline(stage))
+        # BACKGROUND task: the wake run is persistent (never returns while
+        # armed). async_create_task makes HA's bootstrap/shutdown WAIT for it,
+        # which timed out startup ("Setup timed out waiting on _run_pipeline")
+        # and made every restart painfully slow. Background tasks are exempt.
+        self._run_task = self.hass.async_create_background_task(
+            self._run_pipeline(stage), name="homecritters_wake_run"
+        )
 
     async def _run_pipeline(self, stage: PipelineStage) -> None:
         # Capture OUR queue: by the time a cancelled run cleans up, a new run
@@ -224,8 +230,11 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
                 self.hass.async_create_task(self._play_media(url))
 
     async def _play_media(self, url: str) -> None:
-        full_url = async_process_play_media_url(self.hass, url)
-        await self._hub.send(f"media:play:{full_url}")
+        try:
+            full_url = async_process_play_media_url(self.hass, url)
+            await self._hub.send(f"media:play:{full_url}")
+        except Exception:  # noqa: BLE001 - device offline shouldn't leak a task error
+            _LOGGER.warning("Could not play TTS reply on the device")
 
     # --- satellite configuration (wake word runs on HA, not on-device) ---
     @callback
