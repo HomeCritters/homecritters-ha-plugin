@@ -15,12 +15,32 @@ LAN — no cloud, `local_push`.
 
 - **Sensors** — hunger, energy, joy, hygiene, battery, mood, current screen
 - **Buttons** — feed, pet, bath
-- **Switches** — sleep, idle clock
-- **Numbers** — LED brightness, screen brightness
+- **Switches** — sleep, **night mode** (screen+LED off, pet asleep — great
+  for schedule automations, with configurable sleep/wake sounds),
+  **microphone** (privacy mute, mirrors the device's BOOT-tap mute), idle
+  clock
+- **Numbers / selects / text** — LED & screen brightness, pet name,
+  timezone, time/date formats, timeouts — every device setting, organized
+  in Controls / Configuration / Diagnostics
 - **Media player** — HTTP audio playback on the critter's speaker (FLAC /
   MP3 / WAV): TTS announcements (the device shows an Alexa-style voice
   ring), HA media sources, Music Assistant tracks (the device throws a
   disco party 🪩), and AirPlay via Music Assistant's AirPlay receiver
+- **Voice assistant** (`assist_satellite`) — **always-on wake word**: the
+  device streams its mic to HA, openWakeWord (local) listens for the wake
+  word and the Assist pipeline answers through the speaker. Persistent
+  wake runs that re-arm themselves, pipeline states mirrored to the
+  device's ring/LED, `continue_conversation` reopens the mic for
+  follow-ups, and push-to-talk (hold BOOT) beats the wake word. The
+  device's live-mic icon reflects *end-to-end* health (it only lights up
+  when the pipeline is really consuming audio).
+- **"Casa" panel bridge** — pick entities (Configure dialog, drag to
+  order) to show on the device's screen: lights/switches/fans/locks as
+  tap-to-toggle tiles, temperature/humidity/illuminance/presence sensors
+  read-only. Live updates both ways over the WebSocket.
+- **Connections manager** — see paired clients, revoke one or all
+  (per-client credentials; challenge-response auth, the token never
+  travels on the wire)
 
 Entity names are localized (English + Brazilian Portuguese).
 
@@ -53,6 +73,10 @@ The device works as a Music Assistant player through the
   media-streaming commands.
 - Media URLs must be **http://** (the ESP32 does not do TLS); Home Assistant's
   internal media/TTS URLs already are on the LAN.
+- For the voice assistant: an Assist pipeline with a **wake word engine**
+  (e.g. the openWakeWord add-on), STT and TTS. The satellite uses HA's
+  preferred pipeline; tool calling works best with a model that supports
+  native tools (and fits your GPU — e.g. `qwen3:8b` on 8 GB via Ollama).
 
 ## License
 
