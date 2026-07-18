@@ -100,6 +100,19 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
             self._run_task.cancel()
             self._send("mic:off")
             self._send("voice:idle")
+        # Self-heal: armed and un-muted, but the device isn't actually
+        # streaming (mic dropped on a transient hiccup) -> tell it to resume.
+        # Without this the wake run sits with no audio and openWakeWord never
+        # fires (its log shows connect/info/disconnect, never a detection).
+        elif (
+            self._hub.available
+            and self._hub.mic_enabled
+            and self._run_task
+            and not self._run_task.done()
+            and self._hub.data
+            and not self._hub.data.get("micOn", True)
+        ):
+            self._send("mic:on")
 
     def _send(self, cmd: str) -> None:
         """Fire-and-forget a WS command to the device (never raises)."""
