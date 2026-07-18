@@ -279,6 +279,7 @@ class FerretHub:
                     cnonce = secrets.token_hex(16)
                     got_state = False
                     verified = False
+                    wx_sent = False  # home-location convenience, once per connect
                     async for msg in ws:
                         if msg.type != aiohttp.WSMsgType.TEXT:
                             if msg.type == aiohttp.WSMsgType.BINARY:
@@ -334,6 +335,26 @@ class FerretHub:
                             self.data = json.loads(data)
                         except ValueError:
                             continue
+                        # Weather is standalone (Open-Meteo on the device), but
+                        # if no city was ever configured, gift it the home
+                        # location ONCE. Manual settings are never overwritten.
+                        if (
+                            not wx_sent
+                            and "wxCity" in self.data
+                            and not self.data.get("wxCity")
+                        ):
+                            wx_sent = True
+                            name = (
+                                unicodedata.normalize(
+                                    "NFKD", self.hass.config.location_name or "Casa"
+                                )
+                                .encode("ascii", "ignore")
+                                .decode("ascii")[:24]
+                            )
+                            await ws.send_str(
+                                f"wxloc:{self.hass.config.latitude:.4f},"
+                                f"{self.hass.config.longitude:.4f},{name}"
+                            )
                         self._notify()
                     # Connected but closed before ANY state frame = the device
                     # rejected our token. After 3 straight rejections (not a
