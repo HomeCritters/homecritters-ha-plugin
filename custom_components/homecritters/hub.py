@@ -75,6 +75,13 @@ class FerretHub:
         self._audio_sink: asyncio.Queue[bytes] | None = None
         self._event_cb: Callable[[str], None] | None = None
 
+    @property
+    def mic_enabled(self) -> bool:
+        """Mic privacy gate - DEVICE-owned (micMuted in its state push, also
+        flipped by a quick BOOT tap or the HA switch via mute:on/off). The
+        assist satellite arms/disarms the wake word run off this."""
+        return not self.data.get("micMuted", False)
+
     async def async_start(self) -> None:
         self._task = self.hass.loop.create_task(self._run())
 
@@ -104,6 +111,13 @@ class FerretHub:
     def set_audio_sink(self, queue: asyncio.Queue[bytes] | None) -> None:
         """Route incoming binary mic frames into this queue (None = drop)."""
         self._audio_sink = queue
+
+    def clear_audio_sink(self, queue: asyncio.Queue[bytes]) -> None:
+        """Drop the sink ONLY if it's still `queue`. A cancelled pipeline run
+        cleans up after the replacement run installed its own queue - an
+        unconditional clear here deafened the new run (PTT went silent)."""
+        if self._audio_sink is queue:
+            self._audio_sink = None
 
     def set_event_cb(self, cb: Callable[[str], None] | None) -> None:
         """Receive device voice events ('ptt:start', 'ptt:end', ...)."""

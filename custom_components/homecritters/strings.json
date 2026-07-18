@@ -78,6 +78,7 @@
       "idle_clock": {
         "name": "Idle clock"
       },
+<<<<<<< Updated upstream
       "night": {
         "name": "Night mode"
       },
@@ -87,6 +88,8 @@
       "wake_sound": {
         "name": "Wake sound (night mode)"
       },
+=======
+>>>>>>> Stashed changes
       "mic": {
         "name": "Microphone"
       }
