@@ -34,6 +34,13 @@ LAN — no cloud, `local_push`.
   follow-ups, and push-to-talk (hold BOOT) beats the wake word. The
   device's live-mic icon reflects *end-to-end* health (it only lights up
   when the pipeline is really consuming audio).
+- **Weather location gift** — the device fetches real weather on its own
+  (Open-Meteo, no HA required) and renders a distinct scene for every WMO
+  condition: clear / mainly clear / partly cloudy / overcast, fog, drizzle,
+  rain and showers by intensity, freezing rain, snow (incl. grains and
+  snow showers), thunderstorms with visible lightning + thunder, and hail.
+  If the device has no city configured, the hub sends HA's home location
+  once — zero-config weather; manual settings are never overwritten.
 - **"Casa" panel bridge** — pick entities (Configure dialog, drag to
   order) to show on the device's screen: lights/switches/fans/locks as
   tap-to-toggle tiles, temperature/humidity/illuminance/presence sensors
