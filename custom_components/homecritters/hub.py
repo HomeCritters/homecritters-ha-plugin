@@ -77,10 +77,13 @@ class FerretHub:
 
     @property
     def mic_enabled(self) -> bool:
-        """Mic privacy gate - DEVICE-owned (micMuted in its state push, also
-        flipped by a quick BOOT tap or the HA switch via mute:on/off). The
-        assist satellite arms/disarms the wake word run off this."""
-        return not self.data.get("micMuted", False)
+        """Mic privacy gate - DEVICE-owned. False when muted (BOOT tap / HA
+        switch) OR in night mode (fullSleep: the device hard-gates capture,
+        so keeping a wake run armed would just starve all night). The assist
+        satellite arms/tears down the wake word run off this."""
+        return not (
+            self.data.get("micMuted", False) or self.data.get("fullSleep", False)
+        )
 
     async def async_start(self) -> None:
         self._task = self.hass.loop.create_task(self._run())
