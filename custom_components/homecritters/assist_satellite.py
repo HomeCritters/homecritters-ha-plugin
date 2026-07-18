@@ -139,20 +139,21 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
         self._run_task = self.hass.async_create_task(self._run_pipeline(stage))
 
     async def _run_pipeline(self, stage: PipelineStage) -> None:
+        # Capture OUR queue: by the time a cancelled run cleans up, a new run
+        # may already own the sink - only clear it if it's still ours.
+        q = self._audio_queue
         try:
             await self.async_accept_pipeline_from_satellite(
                 audio_stream=self._audio_stream(),
                 start_stage=stage,
                 end_stage=PipelineStage.TTS,
             )
-        except asyncio.CancelledError:
-            self._hub.set_audio_sink(None)
-            raise
         except Exception:  # noqa: BLE001 - never let a bad turn kill the entity
             _LOGGER.exception("Voice pipeline failed")
             await asyncio.sleep(5)  # don't hot-loop on a persistent error
         finally:
-            self._hub.set_audio_sink(None)
+            if q is not None:
+                self._hub.clear_audio_sink(q)
         await self._after_run()
 
     async def _after_run(self) -> None:
@@ -195,11 +196,10 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
     @callback
     def _on_device_event(self, event: str) -> None:
         if event == "ptt:start":
-            # Button beats wake word: cancel an armed wake run and go
-            # straight to STT (the device already chimed + streams).
+            # Button beats wake word - AND beats a stale STT turn (the device
+            # only emits ptt:start on a fresh press, so whatever run exists is
+            # either the armed wake run or a zombie; never block the button).
             if self._run_task and not self._run_task.done():
-                if self._mode == "stt":
-                    return  # already in a talk turn
                 self._run_task.cancel()
             self._start_run(PipelineStage.STT)
         elif event == "ptt:end":

@@ -112,6 +112,13 @@ class FerretHub:
         """Route incoming binary mic frames into this queue (None = drop)."""
         self._audio_sink = queue
 
+    def clear_audio_sink(self, queue: asyncio.Queue[bytes]) -> None:
+        """Drop the sink ONLY if it's still `queue`. A cancelled pipeline run
+        cleans up after the replacement run installed its own queue - an
+        unconditional clear here deafened the new run (PTT went silent)."""
+        if self._audio_sink is queue:
+            self._audio_sink = None
+
     def set_event_cb(self, cb: Callable[[str], None] | None) -> None:
         """Receive device voice events ('ptt:start', 'ptt:end', ...)."""
         self._event_cb = cb
