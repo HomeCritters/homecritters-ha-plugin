@@ -101,6 +101,7 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
             self._run_task.cancel()
             self._send("mic:off")
             self._send("voice:idle")
+            self._send("assist:off")
         # Self-heal: armed and un-muted, but the device isn't actually
         # streaming (mic dropped on a transient hiccup) -> tell it to resume.
         # Without this the wake run sits with no audio and openWakeWord never
@@ -178,6 +179,7 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
             )
         except Exception:  # noqa: BLE001 - never let a bad turn kill the entity
             _LOGGER.exception("Voice pipeline failed")
+            self._send("assist:off")  # pipeline dead: darken the live-mic icon
             await asyncio.sleep(5)  # don't hot-loop on a persistent error
         finally:
             if q is not None:
@@ -201,6 +203,7 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
                     _LOGGER.warning("TTS playback end never seen; re-arming anyway")
         if not (self._hub.available and self._hub.mic_enabled):
             self._send("voice:idle")
+            self._send("assist:off")  # not re-arming: assistant can't hear
             return
         if self._continue_conversation:
             # The assistant asked a follow-up: reopen the mic straight into
@@ -236,6 +239,17 @@ class FerretAssistSatellite(FerretEntity, AssistSatelliteEntity):
 
     # --- pipeline -> us ---
     def on_pipeline_event(self, event: PipelineEvent) -> None:
+        if event.type in (
+            PipelineEventType.WAKE_WORD_START,
+            PipelineEventType.STT_START,
+        ):
+            # A stage is actually consuming our audio: confirm liveness to the
+            # device (gates its "live mic" icon - end-to-end truth, not just
+            # "I'm streaming"). A dead openWakeWord means no start event, so
+            # the icon goes dark (or blinks while the run churns) = visual debug.
+            self._send("assist:on")
+        elif event.type is PipelineEventType.ERROR:
+            self._send("assist:off")
         if event.type is PipelineEventType.WAKE_WORD_END:
             self._send("voice:listening")
         elif event.type is PipelineEventType.STT_END:
