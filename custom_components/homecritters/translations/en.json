@@ -125,6 +125,11 @@
       "pet_name": {
         "name": "Pet name"
       }
+    },
+    "binary_sensor": {
+      "listening": {
+        "name": "Assistant listening"
+      }
     }
   },
   "options": {
