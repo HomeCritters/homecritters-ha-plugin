@@ -26,7 +26,7 @@ class FerretNameText(FerretEntity, TextEntity):
     _attr_translation_key = "pet_name"
     _attr_icon = "mdi:rename"
     _attr_native_min = 1
-    _attr_native_max = 20  # firmware name buffer is 32 incl. JSON escaping
+    _attr_native_max = 14  # firmware truncates at 14 (Pet::setName) - match it
 
     def __init__(self, hub: FerretHub) -> None:
         super().__init__(hub, "petname")

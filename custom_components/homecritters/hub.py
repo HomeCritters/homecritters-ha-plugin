@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import json
 import logging
+import random
 import secrets
 import unicodedata
 from collections.abc import Callable
@@ -29,7 +30,12 @@ from .const import WS_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
-RECONNECT_SECONDS = 5
+RECONNECT_SECONDS = 5  # first retry; doubles per failure up to the cap
+RECONNECT_MAX_SECONDS = 60
+# Mic frames buffered for the voice pipeline: 50 x 20ms = ~1s of audio. If the
+# consumer stalls, old frames are dropped instead of growing HA's memory
+# forever (the device streams ~32KB/s while the wake word listens 24/7).
+AUDIO_SINK_MAX = 50
 
 # Domains the device panel can toggle on/off (everything else is read-only,
 # e.g. sensors show their value). cover/lock get a domain-specific service.
@@ -263,6 +269,7 @@ class FerretHub:
 
     async def _run(self) -> None:
         session = async_get_clientsession(self.hass)
+        backoff = RECONNECT_SECONDS
         while True:
             try:
                 # heartbeat=10: detect a dead socket (device reboot / WiFi
@@ -283,8 +290,14 @@ class FerretHub:
                     async for msg in ws:
                         if msg.type != aiohttp.WSMsgType.TEXT:
                             if msg.type == aiohttp.WSMsgType.BINARY:
-                                if verified and self._audio_sink is not None:
-                                    self._audio_sink.put_nowait(msg.data)
+                                if verified and (q := self._audio_sink) is not None:
+                                    # Bounded: drop the OLDEST frame on overflow
+                                    # so a stalled pipeline can't balloon memory
+                                    # (and fresh audio wins when it recovers).
+                                    if q.qsize() >= AUDIO_SINK_MAX:
+                                        with contextlib.suppress(asyncio.QueueEmpty):
+                                            q.get_nowait()
+                                    q.put_nowait(msg.data)
                             elif msg.type in (
                                 aiohttp.WSMsgType.CLOSED,
                                 aiohttp.WSMsgType.ERROR,
@@ -323,6 +336,7 @@ class FerretHub:
                         if not got_state:
                             got_state = True  # first state frame = authenticated
                             self._auth_fail_streak = 0
+                            backoff = RECONNECT_SECONDS  # healthy again
                             self.available = True
                             self._notify()
                         # Voice events ("evt:ptt:start") aren't JSON state.
@@ -379,4 +393,7 @@ class FerretHub:
             if self.available:
                 self.available = False
                 self._notify()
-            await asyncio.sleep(RECONNECT_SECONDS)
+            # Exponential backoff with jitter: a device that's off for the
+            # night gets pinged once a minute, not hammered every 5 seconds.
+            await asyncio.sleep(backoff + random.uniform(0, backoff * 0.25))
+            backoff = min(backoff * 2, RECONNECT_MAX_SECONDS)
