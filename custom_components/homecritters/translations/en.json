@@ -124,6 +124,9 @@
     "text": {
       "pet_name": {
         "name": "Pet name"
+      },
+      "birthday": {
+        "name": "Birthday (YYYY-MM-DD)"
       }
     },
     "binary_sensor": {
